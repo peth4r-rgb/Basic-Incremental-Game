@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1 point per second</title>
+<style>
+  body { margin:0; height:100vh; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; background:#111; color:#fff; font-family:sans-serif; font-size:10vw; font-weight:bold; overflow:hidden; }
+  #score { margin:20px 0; position:relative; z-index:2; text-shadow:0 0 10px #000,0 0 20px #000; }
+  #rebirthPoints { position:absolute; bottom:60px; z-index:2; font-size:1vw; text-shadow:0 0 10px #000,0 0 20px #000; }
+  #doubleInfo, #tripleInfo { font-size:1.5vw; margin-top:10px; text-shadow:0 0 5px #000; }
+  button { font-size:20px; padding:10px 20px; margin-top:20px; border:none; border-radius:5px; cursor:pointer; background:#0f0; color:#000; position:relative; z-index:2; box-shadow:0 0 10px #0f0,0 0 20px #0f0; font-weight:bold; }
+  button:disabled { background:#555; color:#aaa; box-shadow:0 0 10px #000,0 0 20px #000; cursor:not-allowed; }
+  canvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
+
+  #ralseiFlash {
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:url('images/ralsei.png') center/cover no-repeat;
+    display:none;
+    z-index:9999;
+    opacity:1;
+    transition: opacity 3s linear;
+  }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="score">0</div>
+<button id="doubleBtn" disabled>Buy Double Points (30)</button>
+<div id="doubleInfo">Updates left: 10</div>
+<button id="tripleBtn" disabled>Buy Triple Points (10000)</button>
+<div id="tripleInfo">Updates left: 15</div>
+<button id="rebirthBtn" disabled>Rebirth (100M)</button>
+<div id="rebirthPoints">Rebirth Points: 0</div>
+<button id="rebirthBoostBtn" disabled>Reduce interval by 100ms (1 Rebirth Point)</button>
+
+<div id="ralseiFlash"></div>
+
+<script>
+let score = parseInt(localStorage.getItem('score')) || 0;
+let pointsPerSecond = parseInt(localStorage.getItem('pointsPerSecond')) || 1;
+let doublePrice = parseInt(localStorage.getItem('doublePrice')) || 30;
+let triplePrice = parseInt(localStorage.getItem('triplePrice')) || 10000;
+let rebirthPoints = parseInt(localStorage.getItem('rebirthPoints')) || 0;
+let doubleCount = parseInt(localStorage.getItem('doubleCount')) || 0;
+let tripleCount = parseInt(localStorage.getItem('tripleCount')) || 0;
+let intervalSpeed = parseInt(localStorage.getItem('intervalSpeed')) || 1000;
+const rebirthCost = 100_000_000;
+const maxDoubleCount = 10;
+const maxTripleCount = 15;
+
+let ralseiBoostActive = localStorage.getItem('ralseiBoostActive') === 'true';
+let ralseiMultiplier = parseFloat(localStorage.getItem('ralseiMultiplier')) || 1;
+if (ralseiBoostActive) {
+  intervalSpeed = Math.max(1, intervalSpeed - 999);
+  score *= ralseiMultiplier;
+}
+
+const el = document.getElementById('score');
+const rebirthEl = document.getElementById('rebirthPoints');
+const doubleBtn = document.getElementById('doubleBtn');
+const tripleBtn = document.getElementById('tripleBtn');
+const rebirthBtn = document.getElementById('rebirthBtn');
+const rebirthBoostBtn = document.getElementById('rebirthBoostBtn');
+const doubleInfo = document.getElementById('doubleInfo');
+const tripleInfo = document.getElementById('tripleInfo');
+
+function updateDisplay() {
+  el.textContent = score.toLocaleString();
+  rebirthEl.textContent = `Rebirth Points: ${rebirthPoints.toLocaleString()}`;
+  doubleInfo.textContent = `Updates left: ${maxDoubleCount - doubleCount}`;
+  tripleInfo.textContent = `Updates left: ${maxTripleCount - tripleCount}`;
+  rebirthBoostBtn.disabled = rebirthPoints < 1;
+}
+
+function tick() {
+  score += pointsPerSecond;
+  updateDisplay();
+  doubleBtn.disabled = score < doublePrice || doubleCount >= maxDoubleCount;
+  doubleBtn.textContent = `Buy Double Points (${doublePrice.toLocaleString()})`;
+  tripleBtn.disabled = score < triplePrice || tripleCount >= maxTripleCount;
+  tripleBtn.textContent = `Buy Triple Points (${triplePrice.toLocaleString()})`;
+  rebirthBtn.disabled = score < rebirthCost;
+
+  localStorage.setItem('score', score);
+  localStorage.setItem('pointsPerSecond', pointsPerSecond);
+  localStorage.setItem('doublePrice', doublePrice);
+  localStorage.setItem('triplePrice', triplePrice);
+  localStorage.setItem('rebirthPoints', rebirthPoints);
+  localStorage.setItem('doubleCount', doubleCount);
+  localStorage.setItem('tripleCount', tripleCount);
+  localStorage.setItem('intervalSpeed', intervalSpeed);
+  localStorage.setItem('ralseiBoostActive', ralseiBoostActive);
+  localStorage.setItem('ralseiMultiplier', ralseiMultiplier);
+
+  setTimeout(tick, intervalSpeed);
+}
+
+tick();
+
+doubleBtn.addEventListener('click', () => {
+  if (score >= doublePrice && doubleCount < maxDoubleCount) {
+    score -= doublePrice;
+    pointsPerSecond *= 2;
+    doublePrice *= 2;
+    doubleCount += 1;
+    updateDisplay();
+  }
+});
+
+tripleBtn.addEventListener('click', () => {
+  if (score >= triplePrice && tripleCount < maxTripleCount) {
+    score -= triplePrice;
+    pointsPerSecond *= 3;
+    triplePrice *= 3;
+    tripleCount += 1;
+    updateDisplay();
+  }
+});
+
+rebirthBtn.addEventListener('click', () => {
+  if (score >= rebirthCost) {
+    score = 0;
+    pointsPerSecond = 1;
+    doublePrice = 30;
+    triplePrice = 10000;
+    doubleCount = 0;
+    tripleCount = 0;
+    rebirthPoints += 1;
+    updateDisplay();
+  }
+});
+
+rebirthBoostBtn.addEventListener('click', () => {
+  if (rebirthPoints >= 1) {
+    rebirthPoints -= 1;
+    intervalSpeed = Math.max(1, intervalSpeed - 100);
+    updateDisplay();
+  }
+});
+
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+let particles = [];
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  particles = [];
+  for (let i = 0; i < 100; i++) {
+    particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: Math.random() * 2 + 1, speedY: Math.random() * 1 + 0.2 });
+  }
+}
+window.addEventListener('resize', resize);
+resize();
+
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  particles.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+    ctx.fill();
+    p.y += p.speedY;
+    if (p.y > canvas.height) { p.y = -p.radius; p.x = Math.random() * canvas.width; }
+  });
+  requestAnimationFrame(animate);
+}
+animate();
+updateDisplay();
+
+function triggerRalsei() {
+  const flash = document.getElementById('ralseiFlash');
+  flash.style.display = 'block';
+  flash.style.opacity = '1';
+
+  ralseiMultiplier *= 4_000_000_000_000_000; // 4 quadrillion
+  score *= 4_000_000_000_000_000;
+  intervalSpeed = Math.max(1, intervalSpeed - 999);
+  ralseiBoostActive = true;
+  localStorage.setItem('ralseiBoostActive','true');
+  localStorage.setItem('ralseiMultiplier', ralseiMultiplier);
+
+  setTimeout(()=>{ flash.style.opacity='0'; },10);
+}
+
+setInterval(()=>{ if (Math.random() < 0.00012) triggerRalsei(); },1000);
+</script>
+</body>
+</html>
